@@ -1,0 +1,113 @@
+YOUR_DOMAIN {
+    log {
+        output stdout
+        level INFO
+    }
+
+    # =============================================
+    # Well-known endpoints
+    # =============================================
+    handle /.well-known/matrix/client {
+        header Access-Control-Allow-Origin "*"
+        header Content-Type application/json
+        respond `{
+          "m.homeserver": {
+            "base_url": "https://YOUR_DOMAIN"
+          },
+          "m.authentication": {
+            "issuer": "https://YOUR_DOMAIN/auth/",
+            "account": "https://YOUR_DOMAIN/account/"
+          },
+          "org.matrix.msc2965.authentication": {
+            "issuer": "https://YOUR_DOMAIN/auth/",
+            "account": "https://YOUR_DOMAIN/auth/account/"
+          },
+          "org.matrix.msc4143.rtc_foci": [
+            {
+              "type": "livekit",
+              "livekit_service_url": "https://YOUR_DOMAIN/livekit/jwt"
+            }
+          ]
+        }` 200
+    }
+
+    handle /.well-known/matrix/server {
+        header Access-Control-Allow-Origin "*"
+        header Content-Type application/json
+        respond `{
+          "m.server": "YOUR_DOMAIN:443"
+        }` 200
+    }
+
+    handle /.well-known/element/element.json {
+        header Access-Control-Allow-Origin "*"
+        header Content-Type application/json
+        respond `{
+          "io.element.msc2965_authentication": {
+            "issuer": "https://YOUR_DOMAIN/auth/",
+            "client_id": "element-x"
+          },
+          "io.element.call.enabled": true,
+          "io.element.call.backend": {
+            "type": "livekit",
+            "livekit_service_url": "https://YOUR_DOMAIN/livekit/jwt"
+          }
+        }` 200
+    }
+
+    # =============================================
+    # MAS — authentication endpoints
+    # =============================================
+    handle /_matrix/client/*/login {
+        reverse_proxy mas:8080
+    }
+    handle /_matrix/client/*/logout {
+        reverse_proxy mas:8080
+    }
+    handle /_matrix/client/*/refresh {
+        reverse_proxy mas:8080
+    }
+    handle_path /auth/* {
+        reverse_proxy mas:8080
+    }
+    handle /auth {
+        reverse_proxy mas:8080
+    }
+    handle_path /account/* {
+        reverse_proxy mas:8080
+    }
+    handle /.well-known/* {
+        reverse_proxy mas:8080
+    }
+
+    # =============================================
+    # LiveKit — WebRTC signaling and JWT service
+    # =============================================
+    handle_path /livekit/jwt/* {
+        reverse_proxy lk-jwt-service:8080
+    }
+    handle_path /livekit/sfu* {
+        reverse_proxy livekit:7880
+    }
+
+    # =============================================
+    # Synapse — Matrix homeserver
+    # =============================================
+    handle /_matrix/* {
+        reverse_proxy synapse:8008
+    }
+    handle /_synapse/* {
+        reverse_proxy synapse:8008
+    }
+
+    # =============================================
+    # Synapse Admin — management UI
+    # =============================================
+    handle_path /admin/* {
+        reverse_proxy synapse-admin:80
+    }
+
+    handle {
+        respond 404
+    }
+}
