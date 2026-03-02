@@ -1,0 +1,156 @@
+# =============================================
+# Matrix Authentication Service configuration
+# Public URL: https://YOUR_DOMAIN/auth/
+# =============================================
+
+# =============================================
+# HTTP server
+# =============================================
+http:
+  listeners:
+    # Main web listener — all OIDC and UI endpoints
+    - name: web
+      resources:
+        - name: discovery   # OIDC discovery (.well-known)
+        - name: human       # UI pages (login, registration)
+        - name: oauth       # OAuth2/OIDC endpoints
+        - name: compat      # Legacy Matrix client compatibility
+        - name: graphql     # GraphQL API
+        - name: assets      # Static files (CSS, JS)
+      binds:
+        - address: '[::]:8080'
+      proxy_protocol: false
+
+    # Internal listener — healthcheck only
+    - name: internal
+      resources:
+        - name: health
+      binds:
+        - host: localhost
+          port: 8081
+      proxy_protocol: false
+
+  # Trusted proxies — Docker networks and localhost
+  trusted_proxies:
+    - 192.168.0.0/16
+    - 172.16.0.0/12
+    - 10.0.0.0/10
+    - 127.0.0.1/8
+    - fd00::/8
+    - ::1/128
+
+  # Public MAS address — used in OIDC links
+  public_base: https://YOUR_DOMAIN/auth/
+  issuer: https://YOUR_DOMAIN/auth/
+
+# =============================================
+# Registration policies
+# =============================================
+policy:
+  data:
+    # Open user registration
+    registration:
+      enabled: true
+    # Dynamic client registration — for self-registering clients
+    client_registration:
+      allow_host_mismatch: true
+      allow_missing_client_uri: true
+      allow_missing_contacts: true
+
+# =============================================
+# PostgreSQL database
+# =============================================
+database:
+  uri: postgresql://synapse:YOUR_POSTGRES_PASSWORD@db:5432/mas
+  max_connections: 10
+  min_connections: 0
+  connect_timeout: 30
+  idle_timeout: 600
+  max_lifetime: 1800
+
+# =============================================
+# Email (SMTP)
+# =============================================
+email:
+  from: "Your Matrix Server <noreply@YOUR_DOMAIN>"
+  transport: smtp
+  mode: plain
+  hostname: "YOUR_SMTP_HOST"
+  port: 25
+  username: "noreply@YOUR_DOMAIN"
+  password: "YOUR_SMTP_PASSWORD"
+
+# =============================================
+# Account settings
+# =============================================
+account:
+  password_registration_enabled: true
+  password_login_enabled: true
+
+# =============================================
+# Signing keys and secrets — do not change after setup!
+# =============================================
+secrets:
+  encryption: YOUR_ENCRYPTION_SECRET_64HEX
+  keys:
+    - key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        # Generate: openssl genrsa 2048
+        -----END RSA PRIVATE KEY-----
+    - key: |
+        -----BEGIN EC PRIVATE KEY-----
+        # Generate: openssl ecparam -name prime256v1 -genkey -noout
+        -----END EC PRIVATE KEY-----
+    - key: |
+        -----BEGIN EC PRIVATE KEY-----
+        # Generate: openssl ecparam -name secp384r1 -genkey -noout
+        -----END EC PRIVATE KEY-----
+    - key: |
+        -----BEGIN EC PRIVATE KEY-----
+        # Generate: openssl ecparam -name secp256k1 -genkey -noout
+        -----END EC PRIVATE KEY-----
+
+# =============================================
+# Password hashing
+# =============================================
+passwords:
+  enabled: true
+  schemes:
+    - version: 1
+      algorithm: argon2id
+  minimum_complexity: 3
+
+# =============================================
+# Synapse connection
+# =============================================
+matrix:
+  kind: synapse
+  homeserver: YOUR_DOMAIN
+  secret: YOUR_MAS_SYNAPSE_SHARED_SECRET
+  endpoint: http://synapse:8008
+
+# =============================================
+# OAuth2 clients
+# =============================================
+oauth:
+  # Dynamic client registration enabled
+  registration:
+    enabled: true
+  clients:
+    # Synapse — internal client for auth delegation
+    - client_id: 0000000000000000000SYNAPSE
+      client_auth_method: client_secret_basic
+      client_secret: "YOUR_SYNAPSE_OAUTH_CLIENT_SECRET"
+
+    # Element X — mobile client
+    - client_id: element-x
+      client_name: Element X
+      client_uri: https://app.element.io/
+      redirect_uris:
+        - elementx://auth/callback
+        - https://app.element.io/#/login/callback
+      scopes:
+        - openid
+        - profile
+        - email
+        - offline_access
