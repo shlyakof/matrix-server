@@ -1,0 +1,116 @@
+services:
+  # =============================================
+  # PostgreSQL — database for Synapse and MAS
+  # =============================================
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: synapse
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: YOUR_POSTGRES_PASSWORD
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - matrix
+
+  # =============================================
+  # Synapse — Matrix homeserver
+  # =============================================
+  synapse:
+    image: matrixdotorg/synapse:latest
+    restart: unless-stopped
+    depends_on:
+      - db
+    volumes:
+      - ./synapse-data:/data
+    environment:
+      - SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
+    networks:
+      - matrix
+
+  # =============================================
+  # MAS — Matrix Authentication Service (OIDC)
+  # =============================================
+  mas:
+    image: ghcr.io/element-hq/matrix-authentication-service:latest
+    restart: unless-stopped
+    volumes:
+      - ./mas-config.yaml:/config/config.yaml:ro
+    command: ["server", "--config", "/config/config.yaml"]
+    depends_on:
+      - db
+      - synapse
+    networks:
+      - matrix
+
+  # =============================================
+  # Synapse Admin — web management panel
+  # =============================================
+  synapse-admin:
+    image: awesometechnologies/synapse-admin:latest
+    restart: unless-stopped
+    networks:
+      - matrix
+
+  # =============================================
+  # LiveKit — WebRTC media server for Element Call
+  # =============================================
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    ports:
+      - "7880:7880"                         # HTTP/WebSocket signaling
+      - "7881:7881/tcp"                     # RTC TCP fallback
+      - "50000-50200:50000-50200/udp"       # WebRTC UDP media range
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    command: ["--config", "/etc/livekit.yaml"]
+    networks:
+      - matrix
+
+  # =============================================
+  # lk-jwt-service — issues LiveKit JWT tokens for Matrix clients
+  # =============================================
+  lk-jwt-service:
+    image: ghcr.io/element-hq/lk-jwt-service:latest
+    restart: unless-stopped
+    environment:
+      - LIVEKIT_URL=wss://YOUR_DOMAIN/livekit/sfu   # must be wss:// for external access
+      - LIVEKIT_KEY=YOUR_LIVEKIT_API_KEY
+      - LIVEKIT_SECRET=YOUR_LIVEKIT_API_SECRET
+      - HOMESERVER_URL=https://YOUR_DOMAIN
+    depends_on:
+      - livekit
+      - synapse
+    networks:
+      - matrix
+
+  # =============================================
+  # Caddy — reverse proxy + automatic TLS (Let's Encrypt)
+  # =============================================
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - ./well-known:/usr/share/caddy/well-known:ro
+    depends_on:
+      - synapse
+      - mas
+      - livekit
+      - synapse-admin
+    networks:
+      - matrix
+
+networks:
+  matrix:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  caddy_data:
