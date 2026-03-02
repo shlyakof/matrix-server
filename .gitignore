@@ -1,0 +1,18 @@
+# Synapse runtime data — keep only the config template
+synapse-data/*
+!synapse-data/homeserver.yaml
+
+# Signing keys and log configs — never commit
+*.signing.key
+*.log.config
+
+# Environment files with real secrets
+.env
+.env.*
+
+# Caddy TLS certificates and data
+caddy_data/
+
+# OS
+.DS_Store
+Thumbs.db
