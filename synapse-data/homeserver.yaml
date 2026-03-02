@@ -1,0 +1,88 @@
+# =============================================
+# Synapse homeserver configuration
+# =============================================
+server_name: "YOUR_DOMAIN"
+public_baseurl: "https://YOUR_DOMAIN"
+
+# =============================================
+# PostgreSQL database
+# =============================================
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: YOUR_POSTGRES_PASSWORD
+    database: synapse
+    host: db
+    cp_min: 5
+    cp_max: 10
+  allow_unsafe_locale: true
+
+# =============================================
+# Network and federation
+# =============================================
+# Empty whitelist = federation disabled (local users only)
+federation_domain_whitelist: []
+trusted_key_servers: []
+
+# HTTP listener — Caddy proxies here
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    resources:
+      - names: [client, openid]
+        compress: false
+
+# =============================================
+# Registration
+# =============================================
+# Registration via Synapse is disabled — using MAS
+enable_registration: false
+registration_requires_token: false
+
+# =============================================
+# System settings
+# =============================================
+report_stats: false
+pid_file: /data/homeserver.pid
+log_config: "/data/YOUR_DOMAIN.log.config"
+media_store_path: /data/media_store
+
+# Secret keys — do not change after initial setup!
+macaroon_secret_key: "YOUR_MACAROON_SECRET_KEY"
+form_secret: "YOUR_FORM_SECRET"
+signing_key_path: "/data/YOUR_DOMAIN.signing.key"
+
+# =============================================
+# User directory
+# =============================================
+user_directory:
+  enabled: true
+  search_all_users: true
+
+# =============================================
+# Matrix Authentication Service (MAS)
+# All authentication is delegated to MAS
+# =============================================
+matrix_authentication_service:
+  enabled: true
+  endpoint: "http://mas:8080"
+  secret: "YOUR_MAS_SYNAPSE_SHARED_SECRET"
+
+# Passwords disabled — using OIDC via MAS only
+password_config:
+  enabled: false
+
+auto_join_rooms:
+  - "#general:YOUR_DOMAIN"
+auto_join_rooms_require_invite: false
+
+# =============================================
+# Element Call / LiveKit
+# =============================================
+experimental_features:
+  msc3266_enabled: true
+  msc4140_enabled: true
+max_event_delay_duration: 24h
