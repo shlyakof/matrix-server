@@ -18,7 +18,7 @@ Self-hosted Matrix homeserver based on **Synapse + MAS + LiveKit + Element Call*
 
 ### 1. Clone the repo
 ```bash
-git clone https://github.com/YOUR_USERNAME/matrix-server.git
+git clone https://github.com/shlyakof/matrix-server.git
 cd matrix-server
 ```
 
